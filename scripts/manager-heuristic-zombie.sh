@@ -52,18 +52,22 @@ if [ "$IS_SKILLDEV" = true ]; then
   ACTIVE_CLEAN=$(jq -r '.agents.active_agents[]?' "$STATE_JSON" 2>/dev/null || true)
 
   # Map an active_agents name to an inner-loop role. test-evaluator first
-  # to avoid the tester* pattern swallowing test-evaluator-* names.
+  # to avoid the evaluator* pattern swallowing test-evaluator-* names.
+  # Only inner-loop roles are matched here; persistent teammates
+  # (orchestrator, manager, architect, explorer, curator, plan-evaluator,
+  # pm) fall through to the empty case and are skipped automatically.
   find_role() {
     local agent="$1"
     case "$agent" in
       test-evaluator|test-evaluator-*|*-test-evaluator|*-test-evaluator-*) echo "test-evaluator" ;;
       generator|generator-*|*-generator|*-generator-*) echo "generator" ;;
+      evaluator|evaluator-*|*-evaluator|*-evaluator-*) echo "evaluator" ;;
       tester|tester-*|*-tester|*-tester-*) echo "tester" ;;
       *) echo "" ;;
     esac
   }
 
-  # Role-specific terminal phase enum (FORM.md §Phase A/B; Soft Gate 4.S2).
+  # Role-specific terminal phase enum (FORM.md Â§Phase A/B; Soft Gate 4.S2).
   is_terminal_phase() {
     local role="$1" phase="$2"
     case "$role" in
@@ -74,6 +78,8 @@ if [ "$IS_SKILLDEV" = true ]; then
     esac
   }
 
+  # find_role returns "" for any non-inner-loop name (orchestrator, manager,
+  # architect, ...), so persistent teammates are filtered automatically.
   while IFS= read -r agent; do
     [ -z "$agent" ] && continue
     role=$(find_role "$agent")
@@ -96,8 +102,10 @@ else
     exit 0
   fi
 
+  # Iterates only inner-loop roles, so persistent teammates are excluded by
+  # construction.
   for role in generator evaluator tester test-evaluator; do
-    if echo "$ACTIVE_AGENTS" | grep -q "$role"; then
+    if echo "$ACTIVE_AGENTS" | tr ' ' '\n' | grep -qx "$role"; then
       if [ -f "$SUPERTEAM_DIR/verdicts/increment-${CURRENT_INCREMENT}.md" ]; then
         verdict=$(parse_yaml_field "$SUPERTEAM_DIR/verdicts/increment-${CURRENT_INCREMENT}.md" "verdict")
         if [ "$verdict" = "APPROVED" ]; then
@@ -109,11 +117,21 @@ else
 fi
 
 if [ -n "$ZOMBIES" ]; then
-  echo "ZOMBIE AGENTS DETECTED: ${ZOMBIES}"
-  echo "These agents are still in .agents.active_agents (state.json) but their work unit has completed."
-  echo "Action: TL should send shutdown messages and remove from .agents.active_agents."
+  for z in $ZOMBIES; do
+    new_agents=$(bash "$SCRIPT_DIR/state-mutate.sh" get .agents \
+      | jq --arg z "$z" '.active_agents -= [$z]')
+    bash "$SCRIPT_DIR/state-mutate.sh" --set agents="$new_agents"
+  done
+
+  {
+    echo "ZOMBIE AGENTS PRUNED FROM .agents.active_agents:${ZOMBIES}"
+    echo "Action: caller should SendMessage [SUPERTEAM:KILL] Exit. to each name printed below."
+  } >&2
+  for z in $ZOMBIES; do
+    printf '%s\n' "$z"
+  done
   exit 1
 fi
 
-echo "No zombie agents detected"
+echo "No zombie agents detected" >&2
 exit 0

@@ -78,34 +78,30 @@ GLOBAL_WIKI="${SUPERTEAM_WIKI_PATH:-$HOME/.superteam}"
 # Step 1: Create session directories
 # ---------------------------------------------------------------------------
 
-echo "--- Creating session directories ---"
 
-mkdir -p "$SUPERTEAM_DIR/contracts"
-mkdir -p "$SUPERTEAM_DIR/scripts/final"
-mkdir -p "$SUPERTEAM_DIR/attempts"
-mkdir -p "$SUPERTEAM_DIR/traces"
-mkdir -p "$SUPERTEAM_DIR/verdicts"
-mkdir -p "$SUPERTEAM_DIR/gate-results"
-mkdir -p "$SUPERTEAM_DIR/knowledge/findings"
+mkdir -p \
+"$SUPERTEAM_DIR/contracts" \
+"$SUPERTEAM_DIR/scripts/final" \
+"$SUPERTEAM_DIR/attempts" \
+"$SUPERTEAM_DIR/traces" \
+"$SUPERTEAM_DIR/verdicts" \
+"$SUPERTEAM_DIR/gate-results" \
+"$SUPERTEAM_DIR/knowledge/findings"
 
-echo "  OK: Session directories created"
 
 # ---------------------------------------------------------------------------
 # Step 2: Create global wiki directories
 # ---------------------------------------------------------------------------
 
-echo "--- Creating global wiki directories ---"
 
 mkdir -p "$GLOBAL_WIKI/knowledge" "$GLOBAL_WIKI/skills" "$GLOBAL_WIKI/projects"
 chmod 700 "$GLOBAL_WIKI"
 
-echo "  OK: Global wiki directories created"
 
 # ---------------------------------------------------------------------------
 # Step 3: Create global wiki index (only if missing)
 # ---------------------------------------------------------------------------
 
-echo "--- Checking global wiki index ---"
 
 if [ ! -f "$GLOBAL_WIKI/index.md" ]; then
   cat > "$GLOBAL_WIKI/index.md" <<'WIKIINDEX'
@@ -132,7 +128,6 @@ fi
 # Step 4: Copy SCHEMA.md to global wiki (always overwrite)
 # ---------------------------------------------------------------------------
 
-echo "--- Copying SCHEMA.md ---"
 
 if [ -f "$PLUGIN_ROOT/docs/SCHEMA.md" ]; then
   cp "$PLUGIN_ROOT/docs/SCHEMA.md" "$GLOBAL_WIKI/SCHEMA.md"
@@ -145,7 +140,6 @@ fi
 # Step 5: Create knowledge store log (only if missing)
 # ---------------------------------------------------------------------------
 
-echo "--- Checking knowledge store log ---"
 
 if [ ! -f "$GLOBAL_WIKI/log.md" ]; then
   echo "# Knowledge store log" > "$GLOBAL_WIKI/log.md"
@@ -158,7 +152,6 @@ fi
 # Step 6: Detect validation commands
 # ---------------------------------------------------------------------------
 
-echo "--- Detecting validation commands ---"
 
 VALIDATION_COMMANDS=""
 
@@ -191,7 +184,6 @@ fi
 # Step 7: Write template state files
 # ---------------------------------------------------------------------------
 
-echo "--- Writing template state files ---"
 
 # --- metrics.md ---
 cat > "$SUPERTEAM_DIR/metrics.md" <<METRICS
@@ -222,7 +214,6 @@ completed: null
 - Explorer queries: 0
 - Architect checkpoints: 0
 METRICS
-echo "  OK: metrics.md"
 
 # --- lessons-learned.md ---
 cat > "$SUPERTEAM_DIR/lessons-learned.md" <<LESSONS
@@ -232,7 +223,6 @@ last_updated: "${TIMESTAMP}"
 
 (No lessons yet - Generator and Evaluator will append discoveries after each increment.)
 LESSONS
-echo "  OK: lessons-learned.md"
 
 # --- knowledge/index.md ---
 cat > "$SUPERTEAM_DIR/knowledge/index.md" <<KINDEX
@@ -246,7 +236,6 @@ total_findings: 0
 | # | Topic | File | Requested By | Depth |
 |---|-------|------|--------------|-------|
 KINDEX
-echo "  OK: knowledge/index.md"
 
 # --- state.json (unified, CAS-managed) ---
 # Introduced Increment 1 (docs/SCHEMA.md §"Unified state"). Loop-state
@@ -271,7 +260,6 @@ fi
 # is the sole appender (C-4) and refuses to run when this file is
 # absent - seeding it here makes init-session the canonical creator.
 : > "$SUPERTEAM_DIR/events.jsonl"
-echo "  OK: events.jsonl (empty, append-only)"
 
 # --- strict-evaluations.jsonl (append-only strict-evaluation log) ---
 # Introduced Increment 3 (spec.md FR-3.1 / FR-3.2 / FR-3.5).
@@ -279,13 +267,11 @@ echo "  OK: events.jsonl (empty, append-only)"
 # to run when this file is absent - seeding it here makes init-session
 # the canonical creator.
 : > "$SUPERTEAM_DIR/strict-evaluations.jsonl"
-echo "  OK: strict-evaluations.jsonl (empty, append-only)"
 
 # ---------------------------------------------------------------------------
 # Step 8: Resolve global-guide.md
 # ---------------------------------------------------------------------------
 
-echo "--- Resolving global-guide.md ---"
 
 GLOBAL_GUIDE_PATH="$SUPERTEAM_DIR/resolved-global-guide.md"
 
@@ -304,7 +290,6 @@ fi
 # Step 9: Run startup self-test
 # ---------------------------------------------------------------------------
 
-echo "--- Running startup self-test ---"
 
 SELFTEST_EXIT=0
 SELFTEST_OUTPUT=""

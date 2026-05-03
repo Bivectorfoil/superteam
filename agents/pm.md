@@ -50,10 +50,13 @@ Engage the user with **Explorer-informed questions**:
 4. **Surface conflicts** - if a user requirement contradicts existing patterns, highlight the tension.
 
 Do NOT rush. A missed requirement becomes costly rework downstream.
+Don't ask the user if the Explorer can answer.
+Pick most critical questions. Ask at most FIVE questions at a time.
 
 ### Step 4: Deep-Dive Unknowns via Explorer
 
-During brainstorming, whenever an unknown arises: **don't guess** - send the question to the Explorer. Don't ask the user if the Explorer can answer. Keep asking until confident. Do NOT finalize the spec while unknowns remain.
+During brainstorming, whenever an unknown arises: **don't guess** - send the question to the Explorer.
+Keep asking until confident. Do NOT finalize the spec while unknowns remain.
 
 ### Step 5: Write Evidence-Backed Spec (Draft)
 

@@ -44,7 +44,14 @@ On receiving `"Spawn request: name={role}, agent_def={path}, context: {details}"
 3. **Check constraints**: max concurrent agents (from FORM.md, default 8); name uniqueness.
 4. **Spawn** via `Agent` with `team_name` + `name`. Pass `isolation: "worktree"` if form specifies it.
 5. **Update state**: read current value with `scripts/state-mutate.sh get .agents`, modify with `jq`, then write back with `scripts/state-mutate.sh --set agents=<json>` (CAS protects the round-trip).
-6. **Confirm** to requester. Kill requests: remove from `.agents.active_agents`, update history via the same pattern.
+6. **Confirm** to requester. Kill requests: remove from `.agents.active_agents`, `SendMessage` with body `[SUPERTEAM:KILL] Exit`, and update history via the same pattern.
+
+## Kill Protocol
+
+On receiving `"Kill request: name=<Z>, reason=<R>"`:
+1. `SendMessage` to `"<Z>"` with `{"type":"shutdown_request","request_id":"<uuid>","reason":"<R>"}`.
+2. After 60s, run `bash {PLUGIN_ROOT}/scripts/manager-force-kill-teammate.sh <Z>`.
+3. Confirm to requester.
 
 ## Watchdog Timer (Pipeline Stall Recovery)
 

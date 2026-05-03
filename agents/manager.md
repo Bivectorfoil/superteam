@@ -61,7 +61,13 @@ Continue with unblocked increments. Request TL to notify user.
 Escalate to user via TL - plan may need human guidance.
 
 #### 6: Zombie Agent Detection
-Inner-loop agent in `state.json:.agents.active_agents` but its work unit has moved past applicable state (per form's state machine). Skip persistent agents (manager, architect, explorer). Flag only after 2+ consecutive cycles (~540s) - first detection may be a timing gap. Run `bash scripts/manager-heuristic-zombie.sh` each monitoring cycle to detect zombie agents. Action: escalate to TL (see Communication Routing).
+
+Invoke `/loop 180s` with this prompt
+
+> Run `bash scripts/manager-heuristic-zombie.sh`. For each printed name `Z`,
+> 1. `SendMessage` to `Z` with `{"type":"shutdown_request","request_id":"<uuid>","reason":"zombie"}`
+> 2. After 60s, run `bash scripts/manager-force-kill-teammate.sh <Z>`. If exit code 2: escalate to TL to force kill it.
+> 3. Record both via `scripts/record-event.sh --actor manager --type decision`.
 
 #### 7: Premature Infrastructure Failure Classification
 Agent classifies "infrastructure failure" without evidence. Run `bash scripts/manager-heuristic-infra.sh {N}` to validate the infrastructure failure classification before accepting it. Check: does `attempts/infra-failure-{N}.md` exist? Does `document-infra-failure.sh {N}` exit 0? If not: reject classification and escalate per Communication Routing table. Record the rejection via

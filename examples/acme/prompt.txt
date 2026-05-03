@@ -1,0 +1,16 @@
+Build a Python SDK + CLI for our internal pricing service at `localhost:8080` (port-forwarded from prod).
+It's flaky — 10% random 503s, occasional 200-ms latency spikes — so the SDK must retry with exponential backoff+jitter,  cache response in process for 60s with LRU eviction, and emit `pricing.cli.*` metrics to our DataDog agent on `localhost:8125` (StatsD).
+CLI usage: `acme price SKU-1234 --region us-west-2`. Unkown SKUs return 404 - surface as a typed `SKUNotFoundError`, not a generic `HTTPError`.
+Hard gates:
+1. 1000-iteration stress test passes with 0 unhandled exceptions, p99 < 100ms with warm cache;
+2. metrics show up in DataDog;
+3. structured error on unkown SKU
+4. package installs cleanly
+
+End points:
+ pricing HTTP : http://localhost:8080
+ datadog UDP  : udp://localhost:8125  (StatsD)
+ endpoints:
+   GET  /healthz
+   GET  /pricing/{sku}?region={region}
+   GET  /admin/metrics      (captured StatsD packets, JSON)
