@@ -8,7 +8,7 @@ Phase 5 runs only after Phase 4 PASS. It curates knowledge, presents results to 
 
 The Orchestrator requests TL to spawn the **Curator** for knowledge consolidation from session artifacts to the global wiki.
 
-`SendMessage` to `"team-lead"`:
+Send a message to the team-lead:
 ```
 "Spawn request: name=curator, agent_def={PLUGIN_ROOT}/agents/curator.md,
  context: The superteam session is complete. You are the Knowledge Curator.
@@ -23,7 +23,7 @@ The Orchestrator requests TL to spawn the **Curator** for knowledge consolidatio
  - .superteam/scripts/ - hard gate verification scripts (potential reusable patterns)
  Follow your workflow: Orient --> Gather --> Extract -> Evaluate -> Verify --> Write --> Lint.
  You are an ORCHESTRATOR: dispatch subagents for ALL artifact reading, analysis, and verification.
- Keep your own context lean. When done, SendMessage to 'orchestrator': 'Knowledge curation complete.'"
+ Keep your own context lean. When done, Send a message to the orchestrator: 'Knowledge curation complete.'"
 ```
 
 The Orchestrator updates state: add curator to '"active_agents'.
@@ -39,7 +39,7 @@ The Curator messages the Orchestrator: "Knowledge curation complete."
 
 After Curator work is complete(or skipped), the Orchestrator notifies TL to present results and initiate shutdown:
 
-`SendMessage` to `"team-lead"`:
+Send a message to the team-lead:
 ```
 "Pipeline complete. Please present delivery report to user and initiate shutdown."
 ```

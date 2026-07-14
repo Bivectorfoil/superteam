@@ -1,0 +1,38 @@
+{
+  "name": "superteam",
+  "version": "0.0.2",
+  "description": "General-purpose agent superteam - contract-gated verification loops with 7 outer-loop roles, 5-phase orchestration.",
+  "author": {
+    "name": "Superteam"
+  },
+  "license": "MIT",
+  "entry": {
+    "skill": "skills/superteam/SKILL.md"
+  },
+  "agents": {
+    "directory": "agents",
+    "list": [
+      "orchestrator",
+      "manager",
+      "pm",
+      "architect",
+      "explorer",
+      "plan-evaluator",
+      "curator"
+    ]
+  },
+  "scripts": {
+    "directory": "scripts"
+  },
+  "hooks": {
+    "directory": "hooks"
+  },
+  "taskForms": {
+    "directory": "task-forms",
+    "default": "engineering"
+  },
+  "platform": {
+    "adapter": "platform/platform-adapter.sh",
+    "dispatch": "platform/platform-dispatch.sh"
+  }
+}

@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!--
+  com.superteam.watchdog.plist - macOS launchd agent for Superteam watchdog
+
+  Installation:
+    cp platform/com.superteam.watchdog.plist ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.superteam.watchdog.plist
+
+  Uninstallation:
+    launchctl unload ~/Library/LaunchAgents/com.superteam.watchdog.plist
+    rm ~/Library/LaunchAgents/com.superteam.watchdog.plist
+
+  Logs:
+    /tmp/superteam-watchdog.stdout.log
+    /tmp/superteam-watchdog.stderr.log
+-->
+<dict>
+  <key>Label</key>
+  <string>com.superteam.watchdog</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>__PROJECT_DIR__/platform/watchdog-daemon.sh</string>
+    <string>1200</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>__PROJECT_DIR__</string>
+
+  <key>RunAtLoad</key>
+  <false/>
+
+  <key>KeepAlive</key>
+  <false/>
+
+  <key>StandardOutPath</key>
+  <string>/tmp/superteam-watchdog.stdout.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/tmp/superteam-watchdog.stderr.log</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>SUPERTEAM_DIR</key>
+    <string>.superteam</string>
+  </dict>
+</dict>
+</plist>

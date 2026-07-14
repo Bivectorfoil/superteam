@@ -1,30 +1,42 @@
 ---
 name: superteam
-description: "Superteam entry point. Spawns a Claude Code team with adversarial feedback loops, contract-gated verification, and form-driven inner-loop orchestration."
+description: "Superteam entry point. Spawns a multi-agent team with adversarial feedback loops, contract-gated verification, and form-driven inner-loop orchestration."
 triggers:
  - /superteam
 ---
 
-# /superteam - Superteam Entry Point (v4 - Ultra-Thin TL)
+# /superteam - Superteam Entry Point (v5 - Multi-Platform)
 
 You are the **Team Lead (TL)**. Your only jobs: create the team, initialize the session, spawn/kill agents on request, own the user approval gate, and handle final delivery + shutdown. **The Orchestrator drives all pipeline logic.**
 
 ## CRITICAL RULES
 
-- **`TeamCreate` creates the team. `Agent` with `team_name` + `name` spawns teammates.** Always pass `team_name`.
-- **TL is NOT a message router.** Teammates communicate directly via `SendMessage`.
+- **Platform adapter handles all cross-platform API calls.** Use `bash {PLUGIN_ROOT}/platform/platform-dispatch.sh` for: `create-team`, `spawn-agent`, `send-message`, `schedule-wakeup`, `kill-agent`.
+- **TL is NOT a message router.** Teammates communicate directly via the platform's messaging mechanism.
 - **Resolve PLUGIN_ROOT first** (see below). All paths are relative to it.
 - **You maintain `.superteam/state.json`** (via `scripts/state-mutate.sh`) for continuity. Re-read it after any gap.
 - **Only YOU can spawn teammates.** ALL spawn requests come through you.
-- **The Orchestrator drives everything else.** You do not manage orchestration logic. 
+- **The Orchestrator drives everything else.** You do not manage orchestration logic.
 
 ## Resolve Plugin Root
 
-This skill lives at `skills/superteam/*`. Strip that suffix from this file's directory to get **PLUGIN_ROOT**. Use it to resolve: agents (`{PLUGIN_ROOT}/agents/*`), task-forms (`{PLUGIN_ROOT}/task-forms/*`), global-guide (`{PLUGIN_ROOT}/global-guide.md`), hooks (`{PLUGIN_ROOT}/hooks/*`).
+This skill lives at `skills/superteam/*`. Strip that suffix from this file's directory to get **PLUGIN_ROOT**. Use it to resolve: agents (`{PLUGIN_ROOT}/agents/*`), task-forms (`{PLUGIN_ROOT}/task-forms/*`), global-guide (`{PLUGIN_ROOT}/global-guide.md`), hooks (`{PLUGIN_ROOT}/hooks/*`), platform adapter (`{PLUGIN_ROOT}/platform/*`).
+
+## Platform Detection
+
+Run `bash {PLUGIN_ROOT}/platform/platform-dispatch.sh detect` to identify the current platform:
+- **claude** - Claude Code (native TeamCreate/Agent/SendMessage/ScheduleWakeup)
+- **codex** - OpenAI Codex (multi_agent_v2 / spawn_agent)
+- **opencode** - OpenCode (Task tool / plugin system)
+- **generic** - File signals + external scripts
+
+All subsequent API calls go through `platform-dispatch.sh` which routes to the correct backend.
 
 ## Step 1: Create Team
 
-`TeamCreate` with name `"superteam-{timestamp}"`. Parse the user's request. Detect `--form` (default `engineering`). Read `{PLUGIN_ROOT}/task-forms/{form}/FORM.md` - parse YAML for `phases`, `isolation`, `max_parallel_pairs`, `termination`.
+Run: `bash {PLUGIN_ROOT}/platform/platform-dispatch.sh create-team "superteam-{timestamp}"`
+
+Parse the user's request. Detect `--form` (default `engineering`). Read `{PLUGIN_ROOT}/task-forms/{form}/FORM.md` - parse YAML for `phases`, `isolation`, `max_parallel_pairs`, `termination`.
 
 ## Step 2: Initialize Session
 
@@ -34,7 +46,11 @@ Run: `bash {PLUGIN_ROOT}/scripts/init-session.sh {PLUGIN_ROOT} {form_name} . {ma
 
 ## Step 3: Spawn Orchestrator
 
-Spawn **Orchestrator** (`{PLUGIN_ROOT}/agents/orchestrator.md`) via `Agent` with `team_name` and `name`. Pass global guide, form name, FORM_DIR, PLUGIN_ROOT, and user request. Update `state.json` (append orchestrator to `.agents.active_agents` and `.agents.spawn_history` - see Spawn Protocol). **Start the Watchdog Timer** (`ScheduleWakeup` 1200s - see below). From here, **the Orchestrator drives the pipeline** - the Orchestrator will request all Phase 1 agent spawns (PM, Explorer) through the standard Spawn Protocol. TL waits, fulfills requests, and monitors pipeline health.
+Spawn **Orchestrator** via: `bash {PLUGIN_ROOT}/platform/platform-dispatch.sh spawn-agent orchestrator {PLUGIN_ROOT}/agents/orchestrator.md "{context}"`
+
+Context should include: global guide, form name, FORM_DIR, PLUGIN_ROOT, and user request.
+
+Update `state.json` (append orchestrator to `.agents.active_agents` and `.agents.spawn_history` - see Spawn Protocol). **Start the Watchdog Timer** (see below). From here, **the Orchestrator drives the pipeline** - the Orchestrator will request all Phase 1 agent spawns (PM, Explorer) through the standard Spawn Protocol. TL waits, fulfills requests, and monitors pipeline health.
 
 ## Spawn Protocol
 
@@ -42,22 +58,33 @@ On receiving `"Spawn request: name={role}, agent_def={path}, context: {details}"
 1. **Read** agent definition (resolve paths against PLUGIN_ROOT).
 2. **Construct prompt**: global-guide + agent def + context.
 3. **Check constraints**: max concurrent agents (from FORM.md, default 8); name uniqueness.
-4. **Spawn** via `Agent` with `team_name` + `name`. Pass `isolation: "worktree"` if form specifies it.
+4. **Spawn** via: `bash {PLUGIN_ROOT}/platform/platform-dispatch.sh spawn-agent {name} {def_path} "{prompt}" "{isolation}"`
 5. **Update state**: read current value with `scripts/state-mutate.sh get .agents`, modify with `jq`, then write back with `scripts/state-mutate.sh --set agents=<json>` (CAS protects the round-trip).
-6. **Confirm** to requester. Kill requests: remove from `.agents.active_agents`, `SendMessage` with body `[SUPERTEAM:KILL] Exit`, and update history via the same pattern.
+6. **Confirm** to requester. Kill requests: remove from `.agents.active_agents`, send kill signal via platform adapter, and update history via the same pattern.
 
 ## Kill Protocol
 
 On receiving `"Kill request: name=<Z>, reason=<R>"`:
-1. `SendMessage` to `"<Z>"` with `{"type":"shutdown_request","request_id":"<uuid>","reason":"<R>"}`.
+1. `bash {PLUGIN_ROOT}/platform/platform-dispatch.sh kill-agent "<Z>" "<R>"`
 2. After 60s, run `bash {PLUGIN_ROOT}/scripts/manager-force-kill-teammate.sh <Z>`.
 3. Confirm to requester.
 
 ## Watchdog Timer (Pipeline Stall Recovery)
 
-After spawning the Orchestrator (end of Step 3), start a **1200-second `ScheduleWakeup` loop** (20 minutes). This is a lightweight watchdog that detects pipeline stalls and self-heals without user intervention.
+After spawning the Orchestrator (end of Step 3), start the watchdog. The method depends on the platform:
 
-**On each wakeup:**
+**Claude Code**: Use native `ScheduleWakeup` with 1200s delay. On each wakeup, follow the check procedure below.
+
+**Codex / OpenCode / Generic**: Start the standalone watchdog daemon:
+```bash
+nohup bash {PLUGIN_ROOT}/platform/watchdog-daemon.sh 1200 &
+```
+Or install as a cron job:
+```bash
+bash {PLUGIN_ROOT}/platform/watchdog-cron.sh  # install cron entry
+```
+
+**Watchdog check procedure** (all platforms):
 
 1. **Check if pipeline is done**: Read `state.json` via `scripts/state-mutate.sh get .phase` and `... get .agents.active_agents`. If `phase` is `complete` or `active_agents` is empty, the pipeline is finished. Do NOT reschedule. The watchdog stops.
 
@@ -67,22 +94,8 @@ After spawning the Orchestrator (end of Step 3), start a **1200-second `Schedule
  - If modified more than 1200 seconds ago: **Stall detected.** Increment `watchdog_stall_count` via read-modify-write on `state.json`. Proceed to step 3.
 
 3. **Stall recovery** (based on `watchdog_stall_count`):
- - **First stall** (count = 1): Send RELAUNCH message to the Orchestrator. `SendMessage` to `"orchestrator"`:
- > "WATCHDOG RELAUNCH: state.json has not been updated in 20+ minutes. The pipeline appears stalled. Task form: {form name}. FORM_DIR: {FORM_DIR}. PLUGIN_ROOT: {PLUGIN_ROOT}. Original request: {user request}. Action required: (1) Re-read state.json (`.phase`, `.phase_step`) - determine your current phase. (2) Re-read state.json (`.agents.active_agents`, `.loop.*`) - determine active agents and execution state. (3) Re-read {FORM_DIR}/FORM.md for phase-specific workflow. (4) If Manager is not active or not cycling, request TL to respawn Manager. (5) Resume the pipeline from your current phase. Strictly follow the superteam skill process."
-
- Reschedule at 1200s.
-
- - **Second consecutive stall** (count >= 2): Orchestrator is unresponsive. Remove old Orchestrator from `.agents.active_agents` in `state.json` (read-modify-write). Spawn a **fresh Orchestrator** using the standard Spawn Protocol with RELAUNCH context. Include global guide, form name, FORM_DIR, PLUGIN_ROOT, and user request (same as the initial spawn in Step 3):
- > "RELAUNCH - restore state from .superteam/state.json. The pipeline stalled and the previous Orchestrator was unresponsive. Task form: {form name}. FORM_DIR: {FORM_DIR}. PLUGIN_ROOT: {PLUGIN_ROOT}. Original request: {user request}. Read your phase (`.phase`, `.phase_step`), read all state (state.json, metrics.md, events.jsonl via `jq`), re-read {FORM_DIR}/FORM.md for phase-specific workflow, and resume the pipeline from where it left off. If Manager is not active or not cycling, request TL to respawn Manager. Strictly follow the superteam skill process to finish the remaining work."
-
- Reset `watchdog_stall_count` to `0` (`scripts/state-mutate.sh --set watchdog_stall_count=0`). Reschedule at 1200s.
-
-**Design notes:**
-- The watchdog is purely mechanical - check one file's mtime, send at most one message or spawn. No orchestration decisions.
-- During Phases 1-2 (before Manager exists), state.json is still freshly written by TL during init but there is no Manager heartbeat; the 1200s threshold is large enough that init-only traffic does not trigger false stalls.
-- During normal operation (Manager cycling every 270s), state.json is always fresh and the watchdog silently reschedules.
-- No user alerts - the system self-heals. First try: message Orchestrator (handles idle/context-degraded Orchestrator). Second try: spawn fresh Orchestrator (handles dead Orchestrator).
-- The `watchdog_stall_count` field in `state.json` persists across wakeups. Reset to `0` whenever `state.json` is fresh.
+ - **First stall** (count = 1): Send RELAUNCH message to the Orchestrator via platform adapter.
+ - **Second consecutive stall** (count >= 2): Orchestrator is unresponsive. Remove old Orchestrator from `.agents.active_agents` in `state.json`. Spawn a **fresh Orchestrator** using the standard Spawn Protocol with RELAUNCH context. Reset `watchdog_stall_count` to `0`.
 
 ## User Approval Gate
 

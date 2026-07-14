@@ -1,0 +1,47 @@
+# Superteam plugin configuration for Codex
+#
+# This file registers superteam as a Codex project plugin.
+# Install: copy this file to .codex/plugin.toml in the target project.
+
+[plugin]
+name = "superteam"
+version = "0.0.2"
+description = "General-purpose agent superteam - contract-gated verification loops with 7 outer-loop roles, 5-phase orchestration."
+author = "Superteam"
+license = "MIT"
+
+[plugin.entry]
+# Main skill file - Codex loads this as the entry point
+skill = "skills/superteam/SKILL.md"
+
+[plugin.agents]
+# Agent definitions directory
+directory = "agents"
+# Agent list (Codex needs explicit registration)
+agents = [
+  "orchestrator",
+  "manager",
+  "pm",
+  "architect",
+  "explorer",
+  "plan-evaluator",
+  "curator"
+]
+
+[plugin.scripts]
+# Shell scripts used by the plugin
+directory = "scripts"
+
+[plugin.hooks]
+# Hook scripts directory
+directory = "hooks"
+
+[plugin.task_forms]
+# Task form definitions
+directory = "task-forms"
+default = "engineering"
+
+[plugin.platform]
+# Platform adapter configuration
+adapter = "platform/platform-adapter.sh"
+dispatch = "platform/platform-dispatch.sh"

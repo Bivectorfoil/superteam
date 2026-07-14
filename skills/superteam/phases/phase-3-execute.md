@@ -1,12 +1,12 @@
 # Phase 3: Execute Loop (AUTOMATED -- Manager-Driven)
 
-The Orchestrator drives this phase and coordinates the execution. The Manager drives the execution loop. The Manager and Architect send spawn requests directly to TL via "SendMessage'. TL executes spawns mechanically. The Architect stays alive for scope changes.
+The Orchestrator drives this phase and coordinates the execution. The Manager drives the execution loop. The Manager and Architect send spawn requests directly to TL via the platform messaging mechanism'. TL executes spawns mechanically. The Architect stays alive for scope changes.
 
 ## 3a. Request Manager Spawn (Spawn Point #8)
 
 The Orchestrator requests TL to spawn the **Manager**:
 
-`SendMessage` to `"team-lead"`:
+Send a message to the team-lead:
 ```
 "Spawn request: name=manager, agent_def={PLUGIN_ROOT}/agents/manager.md,
  context: Execution is beginning. Task form: {form name}. Read the Manager
@@ -43,7 +43,7 @@ TL fulfills spawn requests per its generic spawn protocol:
 3. Check constraints: max concurrent agents (from FORM.md), agent name uniqueness.
 4. Spawn via the team. Pass worktree isolation if the form specifies it.
 5. Update `state.json` via `scripts/state-mutate.sh`: read `.agents`, append to `.agents.active_agents` and `.agents.spawn_history` using `jq`, then write back via `--set agents=<json>` (CAS-protected).
-6. Confirm to the Orchestrator via `SendMessage`.
+6. Confirm to the Orchestrator via the platform messaging mechanism.
 
 The Orchestrator updates its own state tracking upon TL's confirmation.
 
@@ -59,7 +59,7 @@ A **completion message** indicates the sender's own work is finished. Examples f
 
 1. Re-read state file.
 2. Verify the reporting agent is an inner-loop role (not Manager, Architect, or Explorer).
-3. Send a shutdown request to TL: `SendMessage` to `"team-lead"` - "Shutdown request: name={agent}. Reason: {work unit} complete."
+3. Send a shutdown request to TL: Send a message to the team-lead: "Shutdown request: name={agent}. Reason: {work unit} complete."
 4. Update state: remove that agent from `active_agents`.
 5. The Manager or Architect will send the next spawn request based on the form's spawn sequence. Forward it to TL per 3b.
 
@@ -75,8 +75,8 @@ When the Manager or Architect requests a context reset (e.g., "Kill current agen
 ## 3d. Handle Inability and Infrastructure Failure
 
 When an agent reports inability OR infrastructure failure to the Orchestrator:
-1. Forward to the Architect via `SendMessage`: "{agent} unable to do {X} / infrastructure failure on {X}."
-2. Forward to the Explorer via `SendMessage`: "Research alternative approaches to {X}. Check knowledge base for related findings. Specifically look for: alternative tools, different environments, workaround patterns."
+1. Forward to the Architect via the platform messaging mechanism: "{agent} unable to do {X} / infrastructure failure on {X}."
+2. Forward to the Explorer via the platform messaging mechanism: "Research alternative approaches to {X}. Check knowledge base for related findings. Specifically look for: alternative tools, different environments, workaround patterns."
 3. The Architect creates targeted fix or exploration increments.
 4. Return to Phase 3 for those fix increments only.
 5. When exploration increments are ready, the Manager or Architect will send spawn requests to TL.
@@ -86,7 +86,7 @@ Infrastructure failures are NOT stop signals. They are research triggers.
 ## 3e. Handle GATE-CHALLENGE
 
 When an agent messages the Orchestrator with GATE-CHALLENGE:
-1. Forward to the Architect via `SendMessage`: "GATE-CHALLENGE on {work unit}. Script: {path}. Issue: {description}."
+1. Forward to the Architect via the platform messaging mechanism: "GATE-CHALLENGE on {work unit}. Script: {path}. Issue: {description}."
 2. The Architect reviews and fixes (or confirms) the script.
 3. The agent re-evaluates after the script is reviewed.
 
@@ -96,7 +96,7 @@ When the Manager requests Architect checkpoint/restart via the Orchestrator:
 1. **Checkpoint**: Save Architect's current state (plan.md is on disk, and all prior decisions are captured in the append-only .superteam/events.jsonl stream -- together they serve as the checkpoint).
 2. **Restart**: The Orchestrator sends a shutdown request to TL for the current Architect, then forwards a spawn request to TL for a fresh Architect:
 
- `SendMessage` to `"team-lead"`:
+ Send a message to the team-lead:
 ```
 "Spawn request: name=architect, agent_def={PLUGIN_ROOT}/agents/architect.md,
  context: You are a RESTARTED Architect. The previous Architect was checkpointed.
@@ -132,7 +132,7 @@ Phase 4 is **mandatory** - it runs unconditionally after Phase 3 regardless of f
 
 The Orchestrator requests TL to spawn a single **Strict Evaluator** for final verification. This is an outer-loop role using the shared agent definition - not a form-specific pair.
 
-`SendMessage` to `"team-lead"`:
+Send a message to the team-lead:
 ```
 "Spawn request: name=strict-evaluator, agent_def={PLUGIN_ROOT}/agents/strict-evaluator.md,
  context: Phase 4 final evaluation. Read .superteam/spec.md for all requirements
@@ -235,7 +235,7 @@ jq '[.[] | select(.verdict=="FAIL")] | length' .superteam/strict-evaluations.jso
 | 3 | Third FAIL - do NOT restart; escalate to the user |
 
 When 3 FAIL records are present without achieving PASS, the Orchestrator sends:
-`SendMessage` to `"team-lead"` - "ESCALATION: 3 FAIL records in strict-evaluations.jsonl. Final evaluation has failed 3 times. Please inform the user and present all accumulated failure records for manual intervention."
+Send a message to the team-lead: "ESCALATION: 3 FAIL records in strict-evaluations.jsonl. Final evaluation has failed 3 times. Please inform the user and present all accumulated failure records for manual intervention."
 
 TL presents the accumulated failure context to the user, including:
 - All FAIL records from `.superteam/strict-evaluations.jsonl` (use `jq` to render)

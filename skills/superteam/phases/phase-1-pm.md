@@ -8,13 +8,13 @@ This is the only interactive phase. The Orchestrator coordinates all agent spawn
 
 The Orchestrator requests TL to spawn the **PM** FIRST - the user is waiting to interact, so PM is the highest priority spawn.
 
-`SendMessage` to `"team-lead"`:
+Send a message to the team-lead:
 ```
 "Spawn request: name=pm, agent_def={PLUGIN_ROOT}/agents/pm.md,
  context: User request: {user's original request}. Task form: {form name}.
  Read the PM Guidance section of {FORM_DIR}/FORM.md for task-form-specific additions.
  The Explorer will be performing an initial codebase survey at .superteam/knowledge/.
- Use SendMessage to 'explorer' to ask questions (it may still be starting up).
+ Use Send a message to the explorer to ask questions (it may still be starting up).
  Brainstorm with the user, then request Orchestrator to spawn a Generator for
  writing concrete final acceptance gates. After user approves gates + spec,
  write .superteam/spec.md and message Orchestrator: 'Spec ready.' (Spawn Point #2)"
@@ -24,12 +24,12 @@ The Orchestrator requests TL to spawn the **PM** FIRST - the user is waiting to 
 
 The Orchestrator requests TL to spawn the **Explorer** - it begins its codebase survey concurrently with PM's brainstorming, seeding the knowledge base.
 
-`SendMessage` to `"team-lead"`:
+Send a message to the team-lead:
 ```
 "Spawn request: name=explorer, agent_def={PLUGIN_ROOT}/agents/explorer.md,
  context: Begin initial codebase survey. Seed knowledge base at .superteam/knowledge/.
  Before initial survey, check ~/.superteam/index.md for cached global knowledge.
- Follow warm-start procedure if it exists. When done, SendMessage to 'pm':
+ Follow warm-start procedure if it exists. When done, Send a message to the pm:
  'Initial codebase survey complete.' Remain available for queries."
 ```
 
@@ -41,7 +41,7 @@ The PM will message the Orchestrator: "Need a Generator for concrete final accep
 
 The Orchestrator forwards this as a spawn request to TL:
 
-`SendMessage` to `"team-lead"`:
+Send a message to the team-lead:
 ```
 "Spawn request: name=generator, agent_def={FORM_DIR}/generator.md,
  context: Phase 1 Gate Author - write concrete, executable final acceptance gates
@@ -61,18 +61,18 @@ The Orchestrator waits for the PM to message: "Spec ready for approval."
 
 TL is the sole user-facing interface for this approval gate. The Orchestrator does not handle this directly - it delegates to TL. The coordination flow:
 
-1. The Orchestrator sends `SendMessage` to `"team-lead"`:
+1. The Orchestrator sends Send a message to the team-lead:
  "Spec is ready for approval. Please read `.superteam/spec.md`, present it including the Final Acceptance Gates section, and collect the approval decision."
 2. TL reads the spec, presents it to the user, and asks: "Do you approve? (yes/no)"
 3. TL relays the user's response back to the Orchestrator.
-4. If **rejected**: The Orchestrator forwards the user's feedback to the PM via `SendMessage`. Return to step 1d.
+4. If **rejected**: The Orchestrator forwards the user's feedback to the PM via the platform messaging mechanism. Return to step 1d.
 5. If **approved**: Proceed to 1f.
 
 ## 1f. Transition to Phase 2 (Spawn Point #4 - PM + Generator exit)
 
 The Orchestrator coordinates the phase transition:
 
-1. Send shutdown requests to TL for PM and Generator: `SendMessage` to `"team-lead"` - "Shutdown request: name=pm. Reason: Phase 1 complete." (and similarly for generator).
+1. Send shutdown requests to TL for PM and Generator: Send a message to the team-lead: "Shutdown request: name=pm. Reason: Phase 1 complete." (and similarly for generator).
 2. Update state: phase -> architect, remove pm and generator from `active_agents`.
 3. Update `metrics.md`: record Phase 1 (PM) completion time.
 4. The Explorer STAYS running.

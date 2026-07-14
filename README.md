@@ -7,15 +7,14 @@
 **one `/superteam` command spawns a real engineering team that brainstorms the spec with you, locks executable acceptance gates, and grinds through your enterprise stack (Flyte, HDFS, k8s, internal mirrors, your MCP servers) — increment by increment, overnight, until every gate passes.<br/>*Not another agent in a loop <br/>No fake "looks good"<br/>No re-teaching your company every Monday***
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
-[![Built for Claude Code](https://img.shields.io/badge/Built%20for-Claude%20Code-d97757?style=for-the-badge&logo=anthropic&logoColor=white)](https://github.com/anthropics/claude-code)
+[![Multi-Platform](https://img.shields.io/badge/Multi--Platform-Claude%20%7C%20Codex%20%7C%20OpenCode-d97757?style=for-the-badge)](#multi-platform-support)
 [![Drop-in Plugin](https://img.shields.io/badge/Drop--in-Plugin-c4441b?style=for-the-badge)](#installation)
 [![Multi-Agent Team](https://img.shields.io/badge/Architecture-Multi--Agent%20Team-254866?style=for-the-badge)](#the-agent-roster)
 [![Hard Gates](https://img.shields.io/badge/Verification-Hard%20Gates-4a7c3f?style=for-the-badge)](#4-tier-contract-verification)
-[![Runs in tmux](https://img.shields.io/badge/Runs%20in-tmux-1bb91f?style=for-the-badge&logo=tmux&logoColor=white)](#run-it-247-on-a-remote-vm-claude-code-team-mode--tmux)
 [![Self-Healing](https://img.shields.io/badge/Loop-Self--Healing-8a2d10?style=for-the-badge)](#the-5-strike-escalation-ladder)
 [![Compounding Wiki](https://img.shields.io/badge/Memory-Karpathy%20Wiki-786a59?style=for-the-badge)](#global-wiki--local-warm-start)
 
-**[Features](#features)** · **[Quick Start](#quick-start)** · **[How It Works](#how-it-works)** · **[Run on a Remote VM](#run-it-247-on-a-remote-vm-claude-code-team-mode--tmux)** · **[Related Projects](#related-projects)** · **[Global Wiki](#global-wiki--local-warm-start)**
+**[Features](#features)** · **[Quick Start](#quick-start)** · **[Multi-Platform](#multi-platform-support)** · **[How It Works](#how-it-works)** · **[Run on a Remote VM](#run-it-247-on-a-remote-vm-claude-code-team-mode--tmux)** · **[Related Projects](#related-projects)** · **[Global Wiki](#global-wiki--local-warm-start)**
 
 **Language / 语言:** [English](README.md) · [中文](README.zh.md)
 
@@ -72,13 +71,22 @@ Inspired by [Karpathy's LLM Wiki pattern](https://gist.github.com/karpathy/442a6
 
 ### 1. Install
 
-Inside Claude Code, add this repo as a plugin marketplace and install the plugin:
-
+**Claude Code** (native plugin):
 ```
 /plugin marketplace add Crysple/superteam
 /plugin install superteam@superteam
 /reload-plugins
 ```
+
+**Other platforms** (auto-detect):
+```bash
+git clone https://github.com/Bivectorfoil/superteam.git
+cd superteam
+bash install.sh              # auto-detects platform
+bash install.sh --platform codex   # or specify explicitly
+```
+
+Supported platforms: `claude`, `codex`, `opencode`, `generic`
 
 Requires **Claude Code v2.1.32+** with agent teams enabled. Launch inside tmux so each teammate gets its own pane:
 
@@ -181,8 +189,120 @@ Each enterprise prompt forces gates that can't be faked on a laptop — `hdfs df
 
 ---
 
+## Multi-Platform Support
+
+Superteam runs on **Claude Code**, **Codex (OpenAI)**, and **OpenCode** — with a unified platform adapter that abstracts away platform-specific APIs.
+
+### Platform Matrix
+
+| Capability | Claude Code | Codex | OpenCode | Generic |
+|-----------|:-----------:|:-----:|:--------:|:-------:|
+| Team creation | native API | signal file | signal file | signal file |
+| Agent spawning | native API | sub-agent dispatch | Task tool | signal file |
+| Inter-agent messaging | `SendMessage` | signal files | signal files | signal files |
+| Watchdog timer | `ScheduleWakeup` | daemon/cron | daemon/cron | daemon/cron |
+| Hook injection | native hooks | native hooks | JS plugins | — |
+| Worktree isolation | ✅ | — | — | — |
+
+### Installation by Platform
+
+```bash
+# Claude Code (native plugin — recommended)
+/plugin marketplace add Crysple/superteam
+/plugin install superteam@superteam
+/reload-plugins
+
+# Codex
+bash install.sh --platform codex
+
+# OpenCode
+bash install.sh --platform opencode
+
+# Auto-detect
+bash install.sh
+```
+
+### Architecture: Platform Adapter
+
+All cross-platform API calls go through `platform/platform-dispatch.sh`:
+
+```bash
+bash platform/platform-dispatch.sh detect           # → claude | codex | opencode | generic
+bash platform/platform-dispatch.sh create-team "x"   # create a team
+bash platform/platform-dispatch.sh spawn-agent "pm" "agents/pm.md" "context"
+bash platform/platform-dispatch.sh send-message "orchestrator" "Spec ready"
+bash platform/platform-dispatch.sh kill-agent "pm" "Phase complete"
+bash platform/platform-dispatch.sh schedule-wakeup 1200
+```
+
+The adapter detects the current platform and routes each call to the correct backend:
+- **Claude Code**: native `TeamCreate` / `Agent` / `SendMessage` / `ScheduleWakeup` APIs
+- **Codex / OpenCode / Generic**: file-based signals in `.superteam/signals/` + external watchdog daemon
+
+### Watchdog (Non-Claude Platforms)
+
+On Codex, OpenCode, or generic platforms, start the standalone watchdog instead of using `ScheduleWakeup`:
+
+```bash
+# Background daemon (checks every 20 minutes)
+nohup bash platform/watchdog-daemon.sh 1200 &
+
+# Or install as a cron job
+bash platform/watchdog-cron.sh
+
+# Or on macOS, use launchd
+cp platform/com.superteam.watchdog.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.superteam.watchdog.plist
+```
+
+### Inter-Agent Communication (Non-Claude Platforms)
+
+On platforms without native `SendMessage`, agents communicate via JSON signal files:
+
+```bash
+# Send a message
+echo '{"action":"message","to":"orchestrator","body":"Spec approved"}' \
+  > .superteam/signals/msg-orchestrator-$(date +%s).json
+
+# Spawn an agent
+echo '{"action":"spawn","name":"pm","agent_def":"agents/pm.md"}' \
+  > .superteam/signals/spawn-pm.json
+
+# Kill an agent
+echo '{"action":"kill","name":"pm","reason":"Phase 1 complete"}' \
+  > .superteam/signals/kill-pm.json
+```
+
+### Project Structure (Multi-Platform)
+
+```
+superteam/
+├── platform/                    # Platform abstraction layer
+│   ├── platform-adapter.sh      # Unified API (4 backends)
+│   ├── platform-dispatch.sh     # CLI interface to adapter
+│   ├── watchdog-daemon.sh       # Standalone watchdog
+│   ├── watchdog-cron.sh         # Cron-based watchdog
+│   └── com.superteam.watchdog.plist  # macOS launchd
+├── agents/                      # Agent definitions (platform-agnostic)
+├── scripts/                     # State management (platform-agnostic)
+├── hooks/                       # Hook scripts
+├── skills/superteam/            # Claude Code entry skill
+├── task-forms/                  # Task form definitions
+├── .claude/                     # Claude Code config
+├── .codex/                      # Codex config + agents
+│   ├── agents/superteam-*.toml  # Codex agent definitions
+│   └── skills/superteam/        # Codex entry skill
+├── .opencode/                   # OpenCode config + agents
+│   ├── agents/superteam-*.md    # OpenCode agent definitions
+│   ├── plugins/                 # OpenCode plugins
+│   └── skills/superteam/        # OpenCode entry skill
+└── install.sh                   # Unified installer
+```
+
+---
+
 ## Run It 24/7 on a Remote VM (Claude Code Team Mode + tmux)
-Superteam is built on **Claude Code's team mode**, where every teammate (PM, Architect, Manager, Generator, Evaluator, …) runs as a *full Claude Code session in its own tmux pane* — not as an in-process subagent. They coordinate through `SendMessage`, append-only event logs, and a CAS-protected `state.json`. That gives you a property normal coding agents don't have:
+Superteam is built on **Claude Code's team mode**, where every teammate (PM, Architect, Manager, Generator, Evaluator, …) runs as a *full Claude Code session in its own tmux pane* — not as an in-process subagent. They coordinate through the platform messaging mechanism, append-only event logs, and a CAS-protected `state.json`. That gives you a property normal coding agents don't have:
 > **The team lives inside tmux. Detach from tmux and the team keeps running. Reattach from anywhere — laptop closed, internet dropped, or the next morning — and you're staring at exactly the state you left.**
 Combine that with the watchdog (auto-restarts the Orchestrator on stalls), the per-increment fresh agents (no context drift), and the file-based state (`.superteam/state.json` + `events.jsonl`), and you get a team that genuinely runs *while you sleep*. Here's the whole pattern on a single remote box:
 
@@ -217,7 +337,8 @@ tail -f .superteam/events.jsonl  # decisions, anomalies, gate verdicts as they h
 | **Claude Code team mode** | Each teammate is an independent Claude Code session in its own tmux pane — failures are isolated, restarts are surgical, context never bleeds between roles. |
 | **tmux on a remote VM** | The session outlives your laptop, your Wi-Fi, and your sleep cycle. SSH back anytime; the team is exactly where you left it. |
 | **`.superteam/state.json`** | Even if a pane dies, the watchdog respawns it from disk state. *History is the files.* |
-| **Watchdog (1200 s)** | Detects pipeline stalls and auto-relaunches the Orchestrator with full context. You don't have to babysit the babysitter. |
+| **Watchdog (1200 s)** | Detects pipeline stalls and auto-relaunches the Orchestrator with full context. Works via `ScheduleWakeup` (Claude Code) or standalone daemon (Codex/OpenCode). |
+| **Platform adapter** | Same pipeline runs on Claude Code, Codex, or OpenCode — agents are platform-agnostic, API calls route through `platform/platform-dispatch.sh`. |
 | **Per-increment fresh pairs** | Long runs don't degrade — each Generator/Evaluator starts with zero accumulated context. |
 **Recovery checklist** (if you ever ssh in and something looks wrong):
 1. `tmux attach-session -t superteam` — see all panes at a glance.
@@ -414,12 +535,23 @@ acronyms, or need context not in the codebase. Sub-tools available:
 
 ---
 ## Installation
-Inside Claude Code (preferred — works from any machine, including remote VMs):
+
+### Claude Code (native plugin — recommended)
 ```
 /plugin marketplace add Crysple/superteam
 /plugin install superteam@superteam
 /reload-plugins
 ```
+
+### Other Platforms
+```bash
+git clone https://github.com/Bivectorfoil/superteam.git
+cd superteam
+bash install.sh              # auto-detects platform
+bash install.sh --platform codex   # or specify: claude | codex | opencode
+```
+
+### Local Development
 For local development on the plugin itself, clone the repo anywhere you like and add it as a *local* marketplace:
 ```bash
 git clone https://github.com/Crysple/superteam ~/code/superteam
@@ -430,7 +562,7 @@ Then in Claude Code:
 /plugin install superteam@superteam
 /reload-plugins
 ```
-Either way, Claude Code copies the plugin into its versioned cache at `~/.claude/plugins/cache`. Don't `cp` or `git clone` into that path directly — it's managed by the plugin system. See the [official install docs](https://code.claude.com/docs/en/discover-plugins) for scopes, updates, and `/plugin` UI usage.
+Claude Code copies the plugin into its versioned cache at `~/.claude/plugins/cache`. Don't `cp` or `git clone` into that path directly — it's managed by the plugin system. See the [official install docs](https://code.claude.com/docs/en/discover-plugins) for scopes, updates, and `/plugin` UI usage.
 
 ---
 ## Design Philosophy
@@ -468,6 +600,12 @@ superteam/
 │       ├── FORM.md           form definition
 │       ├── generator.md      inner-loop implementer
 │       └── evaluator.md      inner-loop verifier
+├── platform/                 multi-platform abstraction layer
+│   ├── platform-adapter.sh   unified API (4 backends)
+│   ├── platform-dispatch.sh  CLI interface to adapter
+│   ├── watchdog-daemon.sh    standalone watchdog daemon
+│   ├── watchdog-cron.sh      cron-based watchdog
+│   └── com.superteam.watchdog.plist  macOS launchd agent
 ├── scripts/                  primitives (state-mutate, record-event, run-gates, …)
 ├── hooks/                    hook definitions (verdict-gate, completion-nudge, …)
 ├── docs/

@@ -24,7 +24,7 @@ Always try local search (Grep/Glob) before escalating to the external MCP.
 ## Plugin Rules
 
 - **Check the wiki first.** If you don't know something, look in the local wiki (`.superteam/knowledge/index.md`) or global wiki (`~/.superteam/index.md`) before searching externally.
-- **Ask the Explorer.** If the wikis don't have the answer, use `SendMessage` to `"explorer"` to research it.
+- **Ask the Explorer.** If the wikis don't have the answer, send a message to the explorer agent to research it.
 
 ## Company Knowledge
 

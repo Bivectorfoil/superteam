@@ -7,10 +7,9 @@
 **敲个 `/superteam`，直接在后台拉起一个正儿八经的工程团队。陪你把需求盘明白，锁死验收条件，<br/>然后通宵死磕你们公司的业务组件（Flyte、HDFS、k8s、内部镜像源、各种 MCP server）。<br/>一小步一小步往前拱，跑到所有验收脚本全绿为止。<br/>不是那种跑两步就死循环的玩具 Agent <br/>不搞"看起来跑通了其实全是 mock"的糊弄学<br/>也不用你每周一重新教它怎么连你们组的内网**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
-[![Built for Claude Code](https://img.shields.io/badge/Built%20for-Claude%20Code-d97757?style=for-the-badge&logo=anthropic&logoColor=white)](https://github.com/anthropics/claude-code)
-[![Runs in tmux](https://img.shields.io/badge/Runs%20in-tmux-1bb91f?style=for-the-badge&logo=tmux&logoColor=white)](#tmux-后台挂机流)
+[![Multi-Platform](https://img.shields.io/badge/Multi--Platform-Claude%20%7C%20Codex%20%7C%20OpenCode-d97757?style=for-the-badge)](#多平台支持)
 
-**[核心能力](#核心痛点解决)** · **[快速跑通](#快速跑通)** · **[工作原理](#工作原理)** · **[后台挂机](#tmux-后台挂机流)** · **[相关项目](#相关项目)** · **[全局 Wiki](#全局-wiki-与热启动)**
+**[核心能力](#核心痛点解决)** · **[快速跑通](#快速跑通)** · **[多平台支持](#多平台支持)** · **[工作原理](#工作原理)** · **[后台挂机](#tmux-后台挂机流)** · **[相关项目](#相关项目)** · **[全局 Wiki](#全局-wiki-与热启动)**
 
 **语言 / Language:** [English](README.md) · [中文](README.zh.md)
 
@@ -49,12 +48,24 @@ Claude Code 单机跑个 20 分钟上下文基本就漂移了。Superteam 能连
 ## 快速跑通
 
 ### 1. 怎么装
-在 Claude Code 里直接把咱们的 repo 加到 marketplace 里：
+
+**Claude Code**（原生插件）：
 ```
 /plugin marketplace add Crysple/superteam
 /plugin install superteam@superteam
 /reload-plugins
 ```
+
+**其他平台**（自动检测）：
+```bash
+git clone https://github.com/Bivectorfoil/superteam.git
+cd superteam
+bash install.sh              # 自动检测平台
+bash install.sh --platform codex   # 或手动指定
+```
+
+支持的平台：`claude`、`codex`、`opencode`、`generic`
+
 *依赖 Claude Code v2.1.32+，记得开 agent teams 特性。建议在 tmux 里跑，这样每个 Agent 独占一个 pane。*
 
 ```bash
@@ -126,9 +137,97 @@ Final Acceptance Gates
 
 ---
 
+## 多平台支持
+
+Superteam 支持 **Claude Code**、**Codex (OpenAI)** 和 **OpenCode**——通过统一的平台适配层抽象掉各平台的专有 API。
+
+### 平台能力矩阵
+
+| 能力 | Claude Code | Codex | OpenCode | 通用 |
+|------|:-----------:|:-----:|:--------:|:----:|
+| 创建团队 | 原生 API | 信号文件 | 信号文件 | 信号文件 |
+| 生成 Agent | 原生 API | 子 Agent 调度 | Task 工具 | 信号文件 |
+| Agent 间通信 | `SendMessage` | 信号文件 | 信号文件 | 信号文件 |
+| 看门狗定时器 | `ScheduleWakeup` | 守护进程/cron | 守护进程/cron | 守护进程/cron |
+| Hook 注入 | 原生 hooks | 原生 hooks | JS 插件 | — |
+| Worktree 隔离 | ✅ | — | — | — |
+
+### 各平台安装方式
+
+```bash
+# Claude Code（原生插件——推荐）
+/plugin marketplace add Crysple/superteam
+/plugin install superteam@superteam
+/reload-plugins
+
+# Codex
+bash install.sh --platform codex
+
+# OpenCode
+bash install.sh --platform opencode
+
+# 自动检测
+bash install.sh
+```
+
+### 架构：平台适配器
+
+所有跨平台 API 调用都通过 `platform/platform-dispatch.sh` 路由：
+
+```bash
+bash platform/platform-dispatch.sh detect           # → claude | codex | opencode | generic
+bash platform/platform-dispatch.sh create-team "x"   # 创建团队
+bash platform/platform-dispatch.sh spawn-agent "pm" "agents/pm.md" "context"
+bash platform/platform-dispatch.sh send-message "orchestrator" "Spec ready"
+bash platform/platform-dispatch.sh kill-agent "pm" "Phase complete"
+bash platform/platform-dispatch.sh schedule-wakeup 1200
+```
+
+适配器自动检测当前平台，将每个调用路由到正确的后端：
+- **Claude Code**：原生 `TeamCreate` / `Agent` / `SendMessage` / `ScheduleWakeup` API
+- **Codex / OpenCode / 通用**：基于文件的信号机制（`.superteam/signals/`）+ 外部看门狗守护进程
+
+### 看门狗（非 Claude Code 平台）
+
+在 Codex、OpenCode 或通用平台上，用独立看门狗替代 `ScheduleWakeup`：
+
+```bash
+# 后台守护进程（每 20 分钟检查一次）
+nohup bash platform/watchdog-daemon.sh 1200 &
+
+# 或安装为 cron 任务
+bash platform/watchdog-cron.sh
+
+# 或在 macOS 上用 launchd
+cp platform/com.superteam.watchdog.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.superteam.watchdog.plist
+```
+
+### Agent 间通信（非 Claude Code 平台）
+
+在没有原生 `SendMessage` 的平台上，Agent 通过 JSON 信号文件通信：
+
+```bash
+# 发送消息
+echo '{"action":"message","to":"orchestrator","body":"Spec approved"}' \
+  > .superteam/signals/msg-orchestrator-$(date +%s).json
+
+# 生成 Agent
+echo '{"action":"spawn","name":"pm","agent_def":"agents/pm.md"}' \
+  > .superteam/signals/spawn-pm.json
+
+# 终止 Agent
+echo '{"action":"kill","name":"pm","reason":"Phase 1 complete"}' \
+  > .superteam/signals/kill-pm.json
+```
+
+---
+
 ## tmux 后台挂机流
 因为 Superteam 底层走的是 Claude Code 的 team 模式，每个 Agent 都在独立的 tmux pane 里。这就带来一个极度舒适的特性：
 **关掉电脑，随它跑。网络断了也不慌，重新连回服务器，现场全在。**
+
+> 注意：此模式适用于 Claude Code。Codex 和 OpenCode 平台使用信号文件 + 看门狗守护进程实现类似效果。
 
 ```bash
 # 找台吃灰的开发机连上去
@@ -154,7 +253,8 @@ tail -f .superteam/state.json
 | **Claude Code team 模式** | 每个成员都是独立的 Claude Code 会话，各占一个 tmux pane——故障隔离，重启精准，上下文不跨角色串。 |
 | **远程 VM + tmux** | 会话生命周期独立于你的笔记本、Wi-Fi 和睡眠时间。随时 SSH 回来，团队原地不动。 |
 | **`.superteam/state.json`** | 某个 pane 挂了，看门狗从磁盘状态重新拉起。历史就是文件。 |
-| **看门狗（1200 秒）** | 检测流水线卡死，自动重启 Orchestrator，完整上下文保留。不用你去盯着它。 |
+| **看门狗（1200 秒）** | 检测流水线卡死，自动重启 Orchestrator。Claude Code 用 `ScheduleWakeup`，其他平台用独立守护进程。 |
+| **平台适配器** | 同一套流水线跑在 Claude Code、Codex、OpenCode 上——Agent 定义与平台无关，API 调用通过 `platform/platform-dispatch.sh` 路由。 |
 | **每增量全新配对** | 长时间运行不退化——每对 Generator/Evaluator 从零上下文启动。 |
 
 **恢复排查清单**（SSH 进去发现有问题的时候）：
@@ -427,11 +527,25 @@ superteam/
 │       ├── FORM.md           表单定义
 │       ├── generator.md      内循环实现者
 │       └── evaluator.md      内循环验收者
+├── platform/                 多平台抽象层
+│   ├── platform-adapter.sh   统一 API（4 种后端）
+│   ├── platform-dispatch.sh  CLI 接口
+│   ├── watchdog-daemon.sh    独立看门狗守护进程
+│   ├── watchdog-cron.sh      cron 看门狗
+│   └── com.superteam.watchdog.plist  macOS launchd
 ├── scripts/                  基础原语（state-mutate、record-event、run-gates……）
 ├── hooks/                    hook 定义（verdict-gate、completion-nudge……）
 ├── docs/
 │   ├── Design.md             哲学与原则
 │   └── SCHEMA.md             状态 artifact schema
+├── .codex/                   Codex 配置 + agent 定义
+│   ├── agents/superteam-*.toml
+│   └── skills/superteam/
+├── .opencode/                OpenCode 配置 + agent 定义
+│   ├── agents/superteam-*.md
+│   ├── plugins/
+│   └── skills/superteam/
+├── install.sh                统一安装脚本
 ├── global-guide.md           注入每个成员 prompt 的共享规则
 └── tests/                    shell 基础的 harness 测试
 ```
