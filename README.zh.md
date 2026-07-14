@@ -64,6 +64,19 @@ bash install.sh              # 自动检测平台
 bash install.sh --platform codex   # 或手动指定
 ```
 
+**在任意项目中使用**（clone 一次，到处安装）：
+```bash
+# 只需 clone 一次到固定位置
+git clone https://github.com/Bivectorfoil/superteam.git ~/tools/superteam
+
+# 在任意项目目录下安装（不需要再 clone）
+cd /path/to/your/project
+bash ~/tools/superteam/install.sh --platform opencode
+
+# 安装后直接使用
+/superteam 你的需求描述
+```
+
 支持的平台：`claude`、`codex`、`opencode`、`generic`
 
 *依赖 Claude Code v2.1.32+，记得开 agent teams 特性。建议在 tmux 里跑，这样每个 Agent 独占一个 pane。*
@@ -168,6 +181,16 @@ bash install.sh --platform opencode
 
 # 自动检测
 bash install.sh
+```
+
+**跨项目复用**（clone 一次，安装到任意项目）：
+```bash
+# 克隆到固定位置
+git clone https://github.com/Bivectorfoil/superteam.git ~/tools/superteam
+
+# 在任意项目中安装，无需再次 clone
+cd /path/to/your/project
+bash ~/tools/superteam/install.sh --platform opencode
 ```
 
 ### 架构：平台适配器
@@ -488,6 +511,14 @@ git clone https://github.com/Crysple/superteam ~/code/superteam
 /reload-plugins
 ```
 无论哪种方式，Claude Code 都会把插件复制到版本化缓存 `~/.claude/plugins/cache`。不要直接 `cp` 或 `git clone` 到那个路径——它由插件系统管理。范围、更新和 `/plugin` UI 用法见[官方安装文档](https://code.claude.com/docs/en/discover-plugins)。
+
+### 跨项目复用
+clone 一次，安装到任意项目：
+```bash
+git clone https://github.com/Bivectorfoil/superteam.git ~/tools/superteam
+cd /path/to/your/project
+bash ~/tools/superteam/install.sh --platform opencode
+```
 
 ---
 

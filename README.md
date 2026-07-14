@@ -86,6 +86,19 @@ bash install.sh              # auto-detects platform
 bash install.sh --platform codex   # or specify explicitly
 ```
 
+**Use in any project** (clone once, install everywhere):
+```bash
+# Clone once to a fixed location
+git clone https://github.com/Bivectorfoil/superteam.git ~/tools/superteam
+
+# Install in any project directory (no need to clone again)
+cd /path/to/your/project
+bash ~/tools/superteam/install.sh --platform opencode
+
+# Then use it directly
+/superteam your request here
+```
+
 Supported platforms: `claude`, `codex`, `opencode`, `generic`
 
 Requires **Claude Code v2.1.32+** with agent teams enabled. Launch inside tmux so each teammate gets its own pane:
@@ -220,6 +233,16 @@ bash install.sh --platform opencode
 
 # Auto-detect
 bash install.sh
+```
+
+**Cross-project reuse** (clone once, install anywhere):
+```bash
+# Clone to a fixed location
+git clone https://github.com/Bivectorfoil/superteam.git ~/tools/superteam
+
+# Install in any project without cloning again
+cd /path/to/your/project
+bash ~/tools/superteam/install.sh --platform opencode
 ```
 
 ### Architecture: Platform Adapter
@@ -549,6 +572,14 @@ git clone https://github.com/Bivectorfoil/superteam.git
 cd superteam
 bash install.sh              # auto-detects platform
 bash install.sh --platform codex   # or specify: claude | codex | opencode
+```
+
+### Cross-Project Reuse
+Clone once and install in any project:
+```bash
+git clone https://github.com/Bivectorfoil/superteam.git ~/tools/superteam
+cd /path/to/your/project
+bash ~/tools/superteam/install.sh --platform opencode
 ```
 
 ### Local Development
