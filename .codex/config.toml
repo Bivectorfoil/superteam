@@ -1,0 +1,11 @@
+# Superteam Codex configuration
+# This file enables platform detection for Codex
+
+[team]
+name = "superteam"
+version = "0.0.2"
+
+[platform]
+adapter = "platform/platform-adapter.sh"
+dispatch = "platform/platform-dispatch.sh"
+signal_dir = ".superteam/signals"

@@ -106,6 +106,10 @@ install_codex() {
   local target_dir="${SUPERTEAM_INSTALL_DIR:-.codex}"
   info "Installing superteam for Codex → $target_dir/"
 
+  # Config (required for platform detection)
+  [ -f "$SCRIPT_DIR/.codex/config.toml" ] && cp "$SCRIPT_DIR/.codex/config.toml" "$target_dir/config.toml"
+  ok "Config installed"
+
   # Agents - convert .md to .toml format
   mkdir -p "$target_dir/agents"
   for agent in "$SCRIPT_DIR/agents/"*.md; do
@@ -148,7 +152,7 @@ install_codex() {
 
   echo ""
   ok "Superteam installed for Codex!"
-  info "Usage: Run the superteam skill from .agents/skills/superteam/"
+  info "Usage: Describe your task in Codex (e.g. 'use superteam to build a Redis queue')"
 }
 
 install_opencode() {
