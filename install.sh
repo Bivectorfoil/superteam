@@ -107,8 +107,12 @@ install_codex() {
   info "Installing superteam for Codex → $target_dir/"
 
   # Config (required for platform detection)
-  [ -f "$SCRIPT_DIR/.codex/config.toml" ] && cp "$SCRIPT_DIR/.codex/config.toml" "$target_dir/config.toml"
-  ok "Config installed"
+  if [ -f "$target_dir/config.toml" ]; then
+    info "Existing config.toml found - skipping"
+  else
+    [ -f "$SCRIPT_DIR/.codex/config.toml" ] && cp "$SCRIPT_DIR/.codex/config.toml" "$target_dir/config.toml"
+    ok "Config installed"
+  fi
 
   # Agents - convert .md to .toml format
   mkdir -p "$target_dir/agents"
@@ -213,16 +217,21 @@ install_opencode() {
   if [ -f "opencode.json" ]; then
     # Existing config - try to merge skills.paths
     if command -v jq &>/dev/null; then
+      # Backup before modifying
+      cp opencode.json opencode.json.bak
       local merged
       merged=$(jq '.skills = (.skills // {}) | .skills.paths = ((.skills.paths // []) + [".opencode/skills"] | unique)' opencode.json 2>/dev/null)
-      if [ -n "$merged" ]; then
+      if [ -n "$merged" ] && echo "$merged" | jq empty 2>/dev/null; then
         echo "$merged" > opencode.json
+        rm -f opencode.json.bak
         ok "Updated opencode.json with skills path"
       else
+        # Restore backup on failure
+        mv opencode.json.bak opencode.json
         warn "Could not merge opencode.json - please add '.opencode/skills' to skills.paths manually"
       fi
     else
-      warn "opencode.json exists - please add '.opencode/skills' to skills.paths manually"
+      warn "opencode.json exists but jq not installed - please add '.opencode/skills' to skills.paths manually"
     fi
   else
     # Create new config
