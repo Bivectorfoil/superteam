@@ -89,10 +89,19 @@ claude --teammate-mode tmux
 
 ### 2. 扔个真实需求给它
 普通 Agent 遇到 `command not found`、找不着 CUDA 或者内部鉴权不通过就直接摆烂了，这种活儿最适合 Superteam：
+
+**Claude Code**（使用斜杠命令）：
 ```text
 /superteam 拿最近 7 天的曝光日志跑个 CTR 排序模型，通过 `pyflyte run --remote` 提给 H100 集群，
 目标 AUC ≥ 0.78，跑完把产物打上 v3 tag 发到内部模型仓库。
 ```
+
+**OpenCode / Codex**（直接描述需求，模型自动触发）：
+```text
+用 superteam 拿最近 7 天的曝光日志跑个 CTR 排序模型，通过 `pyflyte run --remote` 提给 H100 集群，
+目标 AUC ≥ 0.78，跑完把产物打上 v3 tag 发到内部模型仓库。
+```
+> OpenCode 没有斜杠命令，直接描述任务即可。安装后需要重启 OpenCode 才能生效。
 
 ### 3. 跟 PM 扯皮（脑暴阶段）
 PM 会根据你们的内部 wiki 和当前代码库，把你问到没有死角：

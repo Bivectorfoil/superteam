@@ -120,11 +120,22 @@ sudo apt-get install -y tmux   # Debian/Ubuntu
 ### 2. Hand it your goal
 
 The kind of work that goes beyond your laptop, where a normal coding agent quits at *`command not found`*, *`No matching distribution found`*, or *`No CUDA GPUs available`* and waits for you to become the runtime — *that's* the work Superteam exists for.
+
+**Claude Code** (slash command):
 ```
 /superteam Train a CTR ranker on the last 7 days of impression logs, submit to
 the H100 pool via `pyflyte run --remote`, target AUC ≥ 0.78, publish the
 artifact to the model registry tagged v3.
 ```
+
+**OpenCode / Codex** (describe your task, model triggers automatically):
+```
+use superteam to train a CTR ranker on the last 7 days of impression logs,
+submit to the H100 pool via pyflyte run --remote, target AUC >= 0.78, publish
+the artifact to the model registry tagged v3.
+```
+> OpenCode has no slash commands — just describe your task. Restart OpenCode after installation for the skill to take effect.
+
 We'll walk *this* prompt end-to-end below — PM brainstorm, hard gates, approval. Check [**More prompts to try**](#more-prompts-to-try).
 
 ### 3. The PM brainstorms with you

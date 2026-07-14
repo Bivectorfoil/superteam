@@ -205,9 +205,38 @@ install_opencode() {
   cp "$SCRIPT_DIR/global-guide.md" "$target_dir/superteam-global-guide.md"
   ok "Global guide installed"
 
+  # opencode.json - register skills path
+  if [ -f "opencode.json" ]; then
+    # Existing config - try to merge skills.paths
+    if command -v jq &>/dev/null; then
+      local merged
+      merged=$(jq '.skills = (.skills // {}) | .skills.paths = ((.skills.paths // []) + [".opencode/skills"] | unique)' opencode.json 2>/dev/null)
+      if [ -n "$merged" ]; then
+        echo "$merged" > opencode.json
+        ok "Updated opencode.json with skills path"
+      else
+        warn "Could not merge opencode.json - please add '.opencode/skills' to skills.paths manually"
+      fi
+    else
+      warn "opencode.json exists - please add '.opencode/skills' to skills.paths manually"
+    fi
+  else
+    # Create new config
+    cat > opencode.json <<'CONFIG'
+{
+  "$schema": "https://opencode.ai/config.json",
+  "skills": {
+    "paths": [".opencode/skills"]
+  }
+}
+CONFIG
+    ok "Created opencode.json"
+  fi
+
   echo ""
   ok "Superteam installed for OpenCode!"
-  info "Usage: Load the superteam skill from .opencode/skills/superteam/"
+  info "Usage: Describe your task in OpenCode (e.g. 'use superteam to build a Redis queue')"
+  info "Note: Restart OpenCode for the skill to take effect"
 }
 
 install_generic() {
